@@ -1,7 +1,20 @@
 import Phaser from "phaser";
-import L_logo from "./assets/L_logo.png";
 import B_ship from "./assets/B_ship.png";
-import P_player from "./assets/P_player.png";
+import S_player from "./assets/S_player.png";
+import {
+  PLAYER_SPRITE_WIDTH,
+  PLAYER_SPRITE_HEIGHT,
+  PLAYER_START_X,
+  PLAYER_START_Y,
+  PLAYER_WIDTH,
+  PLAYER_HEIGHT,
+} from "./config/constants";
+import { movePlayers } from "./movement";
+import { animateMovement } from "./animation";
+import "./createBoundsFromMask";
+
+const player = {};
+let pressedKeys = [];
 
 class MyGame extends Phaser.Scene {
   constructor() {
@@ -9,20 +22,40 @@ class MyGame extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image("logo", L_logo);
+    this.load.image("ship", B_ship);
+    this.load.spritesheet("player", S_player, {
+      frameWidth: PLAYER_SPRITE_WIDTH,
+      frameHeight: PLAYER_SPRITE_HEIGHT,
+    });
   }
 
   create() {
-    const logo = this.add.image(400, 150, "logo");
+    const ship = this.add.image(0, 0, "ship");
+    player.sprite = this.add.sprite(PLAYER_START_X, PLAYER_START_Y, "player");
+    player.sprite.displayWidth = PLAYER_WIDTH;
+    player.sprite.displayHeight = PLAYER_HEIGHT;
 
-    this.tweens.add({
-      targets: logo,
-      y: 450,
-      duration: 2000,
-      ease: "Power2",
-      yoyo: true,
-      loop: -1,
+    this.anims.create({
+      key: "running",
+      frames: this.anims.generateFrameNumbers("player"),
+      frameRate: 24,
+      repeat: -1,
     });
+
+    this.input.keyboard.on("keydown", (e) => {
+      if (!pressedKeys.includes(e.code)) pressedKeys.push(e.code);
+    });
+    this.input.keyboard.on(
+      "keyup",
+      (e) => (pressedKeys = pressedKeys.filter((key) => key !== e.code))
+    );
+  }
+
+  update() {
+    this.scene.scene.cameras.main.centerOn(player.sprite.x, player.sprite.y);
+
+    movePlayers(pressedKeys, player.sprite);
+    animateMovement(pressedKeys, player.sprite);
   }
 }
 
@@ -35,5 +68,3 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-
-console.log("d");
