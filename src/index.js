@@ -11,7 +11,6 @@ import {
 } from "./config/constants";
 import { movePlayers } from "./movement";
 import { animateMovement } from "./animation";
-import "./createBoundsFromMask";
 
 const player = {};
 let pressedKeys = [];
