@@ -2,7 +2,7 @@ const fs = require("fs");
 const PNG = require("png-js");
 const IMG_WIDTH = 2160;
 
-PNG.decode("B_shipMask.png", function (data) {
+PNG.decode("../assets/B_shipMask.png", function (data) {
   const result = {};
 
   for (let i = 0; i < data.length; i += 4) {
@@ -15,7 +15,7 @@ PNG.decode("B_shipMask.png", function (data) {
   }
 
   fs.writeFileSync(
-    "./mapBounds.js",
+    "../config/mapBounds.js",
     "export const mapBounds = " + JSON.stringify(result)
   );
 });

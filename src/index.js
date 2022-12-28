@@ -11,9 +11,24 @@ import {
 } from "./config/constants";
 import { movePlayers } from "./movement";
 import { animateMovement } from "./animation";
+import { io } from "socket.io-client";
+import {
+  getQueryParameter,
+  getRandomString,
+  updateQueryParameter,
+} from "./uitl/utils";
 
 const player = {};
+const otherPlayer = {};
+let socket;
 let pressedKeys = [];
+
+const room = getQueryParameter("room") || getRandomString(5);
+window.history.replaceState(
+  {},
+  document.title,
+  updateQueryParameter("room", room)
+);
 
 class MyGame extends Phaser.Scene {
   constructor() {
@@ -21,8 +36,14 @@ class MyGame extends Phaser.Scene {
   }
 
   preload() {
+    socket = io(`localhost:3000?room=${room}`);
+
     this.load.image("ship", B_ship);
     this.load.spritesheet("player", S_player, {
+      frameWidth: PLAYER_SPRITE_WIDTH,
+      frameHeight: PLAYER_SPRITE_HEIGHT,
+    });
+    this.load.spritesheet("otherPlayer", S_player, {
       frameWidth: PLAYER_SPRITE_WIDTH,
       frameHeight: PLAYER_SPRITE_HEIGHT,
     });
@@ -30,9 +51,18 @@ class MyGame extends Phaser.Scene {
 
   create() {
     const ship = this.add.image(0, 0, "ship");
+
     player.sprite = this.add.sprite(PLAYER_START_X, PLAYER_START_Y, "player");
     player.sprite.displayWidth = PLAYER_WIDTH;
     player.sprite.displayHeight = PLAYER_HEIGHT;
+
+    otherPlayer.sprite = this.add.sprite(
+      PLAYER_START_X,
+      PLAYER_START_Y,
+      "otherPlayer"
+    );
+    otherPlayer.sprite.displayWidth = PLAYER_WIDTH;
+    otherPlayer.sprite.displayHeight = PLAYER_HEIGHT;
 
     this.anims.create({
       key: "running",
@@ -48,13 +78,46 @@ class MyGame extends Phaser.Scene {
       "keyup",
       (e) => (pressedKeys = pressedKeys.filter((key) => key !== e.code))
     );
+
+    socket.on("move", ({ x, y }) => {
+      if (otherPlayer.sprite.x > x) otherPlayer.sprite.flipX = true;
+      else if (otherPlayer.sprite.x < x) otherPlayer.sprite.flipX = false;
+
+      otherPlayer.sprite.x = x;
+      otherPlayer.sprite.y = y;
+      otherPlayer.moving = true;
+    });
+    socket.on("moveEnd", () => {
+      otherPlayer.moving = false;
+    });
+    socket.on("playerJoined", () => {
+      console.log("playerJoined!");
+    });
   }
 
   update() {
     this.scene.scene.cameras.main.centerOn(player.sprite.x, player.sprite.y);
 
-    movePlayers(pressedKeys, player.sprite);
+    const playerMoved = movePlayers(pressedKeys, player.sprite);
+
+    if (playerMoved) {
+      socket.emit("move", { x: player.sprite.x, y: player.sprite.y });
+      player.moveLastFrame = true;
+    } else {
+      if (player.moveLastFrame) socket.emit("moveEnd");
+
+      player.moveLastFrame = false;
+    }
+
     animateMovement(pressedKeys, player.sprite);
+
+    if (otherPlayer.moving) {
+      if (!otherPlayer.sprite.anims.isPlaying)
+        otherPlayer.sprite.play("running");
+    } else {
+      if (otherPlayer.sprite.anims.isPlaying)
+        otherPlayer.sprite.stop("running");
+    }
   }
 }
 
